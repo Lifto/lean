@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 2: Voice Chat — Flock 2026</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    display: flex;
+    flex-direction: column;
+    padding: 2.5vh 4vw 1.5vh;
+  }
+
+  .header {
+    display: flex;
+    align-items: baseline;
+    gap: 1.2vw;
+    margin-bottom: 1.5vh;
+  }
+  .phase-num {
+    font-size: 2vw; font-weight: 800; color: #3fb950;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .phase-title {
+    font-size: 3vw; font-weight: 700; color: #e6edf3;
+  }
+
+  .content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2vw;
+    flex: 1;
+    align-content: start;
+  }
+
+  .step { margin-bottom: 1.2vh; }
+  .step-label {
+    font-size: 1.15vw; font-weight: 700; color: #3fb950;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 0.4vh;
+  }
+
+  pre {
+    background: #161b22; border: 1px solid #484f58; border-radius: 6px;
+    padding: 0.6vh 0.8vw; overflow-x: auto;
+    position: relative;
+  }
+  .copy-btn {
+    position: absolute; top: 0.4vh; right: 0.4vw;
+    background: #484f58; color: #adbac7; border: 1px solid #6e7681;
+    border-radius: 4px; padding: 0.2vh 0.5vw;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.75vw; cursor: pointer; line-height: 1.4;
+    transition: background 0.15s, color 0.15s;
+  }
+  .copy-btn:hover { background: #6e7681; color: #e6edf3; }
+  .copy-btn.copied { background: #3fb950; color: #fff; border-color: #3fb950; }
+  pre code {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 1.05vw; color: #e6edf3;
+    white-space: pre; line-height: 1.55;
+  }
+
+  .note {
+    font-size: 0.95vw; color: #e3b341; margin-top: 0.3vh;
+  }
+  .check {
+    font-size: 0.95vw; color: #3fb950; margin-top: 0.3vh;
+  }
+  .check::before { content: '\2713\00a0'; font-weight: bold; }
+  .dim { font-size: 0.9vw; color: #adbac7; margin-top: 0.3vh; }
+  pre.tall { max-height: 52vh; overflow-y: auto; }
+
+  .bottom {
+    margin-top: auto;
+    padding-top: 1vh;
+  }
+  .url-bar {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 2.5vw; font-weight: 700;
+    color: #58a6ff;
+    text-align: center;
+    text-shadow: 0 0 8px rgba(88, 166, 255, 0.5), 0 0 25px rgba(88, 166, 255, 0.2);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="phase-num">Phase 2</span>
+  <span class="phase-title">Voice Chat</span>
+
+</div>
+
+<div class="content">
+
+  <div class="left">
+
+    <div class="step">
+      <div class="step-label">1 &mdash; Install audio tools</div>
+      <pre><code>sudo dnf install -y alsa-utils portaudio-devel espeak</code></pre>
+    </div>
+
+    <div class="step">
+      <div class="step-label">2 &mdash; Test your microphone</div>
+      <pre><code>cd ~/chatbot
+arecord -f S16_LE -r 16000 -d 5 input.wav</code></pre>
+      <div class="check">Speak for 5 seconds. You should see recording progress.</div>
+    </div>
+
+    <div class="step">
+      <div class="step-label">3 &mdash; Build whisper.cpp</div>
+      <pre><code>cd ~/chatbot
+git clone --branch v1.8.3 --depth 1 \
+  https://github.com/ggerganov/whisper.cpp
+cd whisper.cpp
+make
+cp ~/chatbot/ggml-base.en.bin ~/chatbot/whisper.cpp/models/</code></pre>
+      <div class="note">&#9202; 2&ndash;3 min build.</div>
+    </div>
+
+    <div class="step">
+      <div class="step-label">4 &mdash; Test speech-to-text</div>
+      <pre><code>cd ~/chatbot/whisper.cpp
+./build/bin/whisper-cli \
+  -m models/ggml-base.en.bin \
+  -f ../input.wav</code></pre>
+      <div class="check">You should see your words transcribed as text.</div>
+    </div>
+
+  </div>
+
+  <div class="right">
+
+    <div class="step">
+      <div class="step-label">5 &mdash; Create talk.sh <a href="talk.sh" download style="font-weight:400; font-size:0.9vw; color:#58a6ff; text-decoration:none; text-transform:none; letter-spacing:0;">&#x2B73; download</a></div>
+      <pre class="tall"><code>cat &gt; ~/chatbot/talk.sh &lt;&lt; 'TALKSCRIPT'
+#!/usr/bin/env bash
+set -e
+AUDIO=input.wav
+
+echo "&#x1f399;&#xfe0f;  Speak now..."
+arecord -f S16_LE -r 16000 -d 5 -q "$AUDIO"
+
+TRANSCRIPT=$(./whisper.cpp/build/bin/whisper-cli \
+  -m ./whisper.cpp/models/ggml-base.en.bin \
+  -f "$AUDIO" \
+  | grep '^\[' \
+  | sed -E 's/^\[[^]]+\][[:space:]]*//' \
+  | tr -d '\n')
+echo "&#x1f5e3;&#xfe0f;  $TRANSCRIPT"
+
+RESPONSE=$(
+  LLAMA_LOG_VERBOSITY=1 ./llama.cpp/build/bin/llama-completion \
+    -m ~/chatbot/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf \
+    -p "$TRANSCRIPT" \
+    -n 150 \
+    -c 512 \
+    -no-cnv \
+    -r "&lt;eor&gt;" \
+    --simple-io \
+    --color off \
+    --no-display-prompt
+)
+
+echo "&#x1f916; $RESPONSE"
+echo "$RESPONSE" | espeak
+TALKSCRIPT
+chmod +x ~/chatbot/talk.sh</code></pre>
+    </div>
+
+    <div class="step">
+      <div class="step-label">6 &mdash; Run it!</div>
+      <pre><code>chmod +x ~/chatbot/talk.sh
+cd ~/chatbot
+./talk.sh</code></pre>
+      <div class="check">You speak &rarr; it transcribes &rarr; LLM responds &rarr; you hear it. Full loop!</div>
+      <div class="dim">Try: <em>Who are your favorite fictional artificial intelligences?</em></div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="bottom">
+  <div class="url-bar">lifto.github.io/lean/2.htm</div>
+  <div style="display:flex; justify-content:space-between; font-size:1vw; margin-top:0.5vh;">
+    <span>&larr; <a href="1.htm" style="color:#58a6ff; text-decoration:none;">Phase 1: First Chat</a> &nbsp; <a href="https://ai.fedoraproject.org/running-an-open-source-ai-chatbot-on-lean-hardware-with-fedora-part-2-lets-talk/" style="color:#58a6ff; text-decoration:none;">Blog: Part 2</a></span>
+    <a href="3.htm" style="color:#58a6ff; text-decoration:none;">Phase 3: Knowledge &rarr;</a>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('pre').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.textContent = 'Copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    });
+  });
+  pre.appendChild(btn);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 3: Knowledge — Flock 2026</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    display: flex;
+    flex-direction: column;
+    padding: 2.5vh 4vw 1.5vh;
+  }
+
+  .header {
+    display: flex;
+    align-items: baseline;
+    gap: 1.2vw;
+    margin-bottom: 1.5vh;
+  }
+  .phase-num {
+    font-size: 2vw; font-weight: 800; color: #3fb950;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .phase-title {
+    font-size: 3vw; font-weight: 700; color: #e6edf3;
+  }
+
+  .content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2vw;
+    flex: 1;
+    align-content: start;
+  }
+  .left, .right { min-width: 0; }
+
+  .step { margin-bottom: 1.2vh; }
+  .step-label {
+    font-size: 1.15vw; font-weight: 700; color: #3fb950;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 0.4vh;
+  }
+
+  pre {
+    background: #161b22; border: 1px solid #484f58; border-radius: 6px;
+    padding: 0.6vh 0.8vw; overflow-x: auto;
+    position: relative;
+  }
+  .copy-btn {
+    position: absolute; top: 0.4vh; right: 0.4vw;
+    background: #484f58; color: #adbac7; border: 1px solid #6e7681;
+    border-radius: 4px; padding: 0.2vh 0.5vw;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.75vw; cursor: pointer; line-height: 1.4;
+    transition: background 0.15s, color 0.15s;
+  }
+  .copy-btn:hover { background: #6e7681; color: #e6edf3; }
+  .copy-btn.copied { background: #3fb950; color: #fff; border-color: #3fb950; }
+  pre code {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 1.05vw; color: #e6edf3;
+    white-space: pre; line-height: 1.55;
+  }
+
+  .note {
+    font-size: 0.95vw; color: #e3b341; margin-top: 0.3vh;
+  }
+  .check {
+    font-size: 0.95vw; color: #3fb950; margin-top: 0.3vh;
+  }
+  .check::before { content: '\2713\00a0'; font-weight: bold; }
+  .dim { font-size: 0.9vw; color: #adbac7; margin-top: 0.3vh; }
+  pre.tall { max-height: 52vh; overflow-y: auto; }
+
+  .bottom {
+    margin-top: auto;
+    padding-top: 1vh;
+  }
+  .url-bar {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 2.5vw; font-weight: 700;
+    color: #58a6ff;
+    text-align: center;
+    text-shadow: 0 0 8px rgba(88, 166, 255, 0.5), 0 0 25px rgba(88, 166, 255, 0.2);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="phase-num">Phase 3</span>
+  <span class="phase-title">Knowledge</span>
+
+</div>
+
+<div class="content">
+
+  <div class="left">
+
+    <div class="step">
+      <div class="step-label">1 &mdash; Install uv &amp; podman</div>
+      <pre><code>sudo dnf install -y uv podman podman-compose postgresql
+uv python install 3.12</code></pre>
+    </div>
+
+    <div class="step">
+      <div class="step-label">2 &mdash; Start the database</div>
+      <pre><code>cd ~/chatbot
+uvx --python 3.12 docs2db db-start
+uvx --python 3.12 docs2db db-restore fedora-docs.sql</code></pre>
+      <div class="note">&#9202; db-start launches PostgreSQL in a container. May take a minute.</div>
+      <div class="dim">fedora-docs.sql is the file from setup (USB / server).</div>
+    </div>
+
+    <div class="step">
+      <div class="step-label">3 &mdash; Test a query</div>
+      <pre><code>uvx --python 3.12 docs2db-api query \
+  "What is the recommended tool for upgrading between major releases on Fedora Silverblue" \
+  --format text --max-chars 2000 --no-refine</code></pre>
+      <div class="check">You should see chunks of Fedora docs. One mentions <strong>ostree</strong>.</div>
+    </div>
+
+  </div>
+
+  <div class="right">
+
+    <div class="step">
+      <div class="step-label">4 &mdash; Create talk-rag.sh <a href="talk-rag.sh" download style="font-weight:400; font-size:0.9vw; color:#58a6ff; text-decoration:none; text-transform:none; letter-spacing:0;">&#x2B73; download</a></div>
+      <pre class="tall"><code>cat &gt; ~/chatbot/talk-rag.sh &lt;&lt; 'TALKSCRIPT'
+#!/usr/bin/env bash
+set -e
+AUDIO=input.wav
+
+echo "&#x1f399;&#xfe0f;  Speak now..."
+arecord -f S16_LE -r 16000 -d 5 -q "$AUDIO"
+
+TRANSCRIPT=$(./whisper.cpp/build/bin/whisper-cli \
+  -m ./whisper.cpp/models/ggml-base.en.bin \
+  -f "$AUDIO" \
+  | grep '^\[' \
+  | sed -E 's/^\[[^]]+\][[:space:]]*//' \
+  | tr -d '\n')
+echo "&#x1f5e3;&#xfe0f;  $TRANSCRIPT"
+
+echo "&#x1f4da; Searching documentation..."
+CONTEXT=$(uvx --python 3.12 docs2db-api query "$TRANSCRIPT" \
+  --format text --max-chars 2000 --no-refine 2&gt;/dev/null || echo "")
+
+PROMPT="You are Brim, a steadfast butler-like advisor created by Ellis.
+Your pronouns are they/them. You are deeply caring, supportive,
+and empathetic, but never effusive. You speak in a calm, friendly,
+casual tone suitable for text-to-speech.
+
+Rules:
+- Reply with only ONE short message directly to the user.
+- Do not write any dialogue labels (User:, Assistant:, Q:, A:),
+  or invent more turns.
+- 100 words or less.
+- If the documentation below is relevant, use it to inform your answer.
+- End with a gentle question, then write &lt;eor&gt; and stop.
+
+Relevant Fedora Documentation:
+$CONTEXT
+
+User: $TRANSCRIPT
+Assistant:"
+
+RESPONSE=$(
+  LLAMA_LOG_VERBOSITY=1 ./llama.cpp/build/bin/llama-completion \
+    -m ~/chatbot/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf \
+    -p "$PROMPT" \
+    -n 150 \
+    -c 512 \
+    -no-cnv \
+    -r "&lt;eor&gt;" \
+    --simple-io \
+    --color off \
+    --no-display-prompt
+)
+
+RESPONSE_CLEAN=$(echo "$RESPONSE" \
+  | sed -E 's/&lt;eor&gt;.*//I')
+RESPONSE_CLEAN=$(echo "$RESPONSE_CLEAN" \
+  | sed -E 's/^[[:space:]]*Assistant:[[:space:]]*//I')
+
+echo "&#x1f916; $RESPONSE_CLEAN"
+echo "$RESPONSE_CLEAN" | espeak
+TALKSCRIPT
+</code></pre>
+    </div>
+
+    <div class="step">
+      <div class="step-label">5 &mdash; Run it!</div>
+      <pre><code>chmod +x ~/chatbot/talk-rag.sh
+cd ~/chatbot
+./talk-rag.sh</code></pre>
+      <div class="check">Ask about Fedora &mdash; the answer now uses real documentation.</div>
+      <div class="dim">Try: <em>How do I upgrade between major releases on Fedora Silverblue?</em></div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="bottom">
+  <div class="url-bar">lifto.github.io/lean/3.htm</div>
+  <div style="display:flex; justify-content:space-between; font-size:1vw; margin-top:0.5vh;">
+    <span>&larr; <a href="2.htm" style="color:#58a6ff; text-decoration:none;">Phase 2: Voice Chat</a> &nbsp; <a href="https://ai.fedoraproject.org/running-an-open-source-ai-chatbot-on-lean-hardware-with-fedora-part-4-knowledge/" style="color:#58a6ff; text-decoration:none;">Blog: Part 4</a></span>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('pre').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.textContent = 'Copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    });
+  });
+  pre.appendChild(btn);
+});
+</script>
+</body>
+</html>
